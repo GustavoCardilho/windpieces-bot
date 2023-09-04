@@ -9,7 +9,7 @@ export const tokenDiscord = process.env.TOKEN_TEST || process.env.TOKEN;
 
 console.log("URL: ", redisPort);
 const client = new ExtendedClient();
-const clientRedis = createClient({
+export const clientRedis = createClient({
   url: redisPort,
 });
 client.on("error", (err) => console.log("Redis Client Error", err));
