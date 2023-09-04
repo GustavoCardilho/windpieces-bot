@@ -1,0 +1,31 @@
+version: "3.1"
+
+services:
+  app:
+    build: .
+    command: "pnpm start"
+    restart: always
+    depends_on:
+      - redis
+    networks:
+      - app-network
+    environment:
+      TOKEN: ${TOKEN}
+  redis:
+    image: redis:alpine
+    restart: always
+    networks:
+      - app-network
+    ports:
+      - 6379:6379
+    expose:
+      - 6379
+    env_file:
+      - .env
+    environment:
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_HOST: ${REDIS_HOST}
+
+networks:
+  app-network:
+    driver: bridge
