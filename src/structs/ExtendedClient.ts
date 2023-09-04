@@ -17,6 +17,7 @@ import {
 import fs from "fs";
 import path from "path";
 import { EventType } from "./types/event";
+import { tokenDiscord } from "..";
 
 const fileCondition = (fileName: string) =>
   fileName.endsWith(".ts") || fileName.endsWith(".js");
@@ -47,7 +48,7 @@ export class ExtendedClient extends Client {
   public async start(): Promise<string> {
     this.registerModules();
     this.registerEvents();
-    await this.login(process.env.TOKEN);
+    await this.login(tokenDiscord);
     return this.user?.tag ?? "Unknown";
   }
 

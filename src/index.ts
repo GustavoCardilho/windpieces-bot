@@ -5,6 +5,7 @@ import { ExtendedClient } from "./structs/ExtendedClient";
 import config from "./config.json";
 
 const redisPort = process.env.REDIS_URL_DEPLOY || process.env.REDIS_URL;
+export const tokenDiscord = process.env.TOKEN_TEST || process.env.TOKEN;
 
 console.log("URL: ", redisPort);
 const client = new ExtendedClient();
