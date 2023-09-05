@@ -12,7 +12,6 @@ export default new Command({
   description: "Pong!",
   type: ApplicationCommandType.ChatInput,
   run({ interaction, client, options }) {
-    console.log(interaction, client, options);
     interaction.reply({
       ephemeral: true,
       content: `Pong!`,
