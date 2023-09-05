@@ -7,6 +7,7 @@ export const envSchema = z.object({
   REDIS_URL: z.string().optional(),
   REDIS_URL_DEPLOY: z.string().optional(),
   MONGODB_URL: z.string().optional(),
+  MONGODB_URL_TEST: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
