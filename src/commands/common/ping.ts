@@ -1,10 +1,4 @@
-import {
-  ActionRowBuilder,
-  ApplicationCommandType,
-  ButtonBuilder,
-  ButtonStyle,
-  Collection,
-} from "discord.js";
+import { ApplicationCommandType } from "discord.js";
 import { Command } from "../../structs/types/command";
 
 export default new Command({

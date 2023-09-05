@@ -4,7 +4,7 @@ import {
 } from "discord.js";
 import { Command } from "../../structs/types/command";
 import * as uuid from "uuid";
-import { clientRedis } from "../..";
+import { clientRedis } from "./../../databases/redis";
 
 export default new Command({
   name: "redis-register",

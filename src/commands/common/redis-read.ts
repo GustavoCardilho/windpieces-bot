@@ -1,10 +1,10 @@
+import { clientRedis } from './../../databases/redis';
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
 } from "discord.js";
 import { Command } from "../../structs/types/command";
 import * as uuid from "uuid";
-import { clientRedis } from "../..";
 
 export default new Command({
   name: "redis-read",

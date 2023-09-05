@@ -1,6 +1,6 @@
 import { ApplicationCommandType } from "discord.js";
 import { Command } from "../../structs/types/command";
-import { clientRedis } from "../..";
+import { clientRedis } from "./../../databases/redis";
 
 export default new Command({
   name: "redis-readall",
