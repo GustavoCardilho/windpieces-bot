@@ -1,6 +1,7 @@
 import { CommandInteractionOptionResolver, EmbedBuilder } from "discord.js";
-import { client, clientRedis } from "../..";
+import { client } from "../..";
 import { Event } from "../../structs/types/event";
+import { clientRedis } from "../../databases/redis";
 
 export default new Event({
   name: "interactionCreate",
