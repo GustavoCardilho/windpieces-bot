@@ -10,7 +10,7 @@
     "start": "tsc && node dist/index.js",
     "prepare": "husky install",
     "prettier:fix": "prettier --write .",
-    "lint-staged": "lint-staged"
+    "lint-staged": "lint-staged --allow-empty"
   },
   "lint-staged": {
     "*.{ts}": [
