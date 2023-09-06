@@ -14,6 +14,20 @@ export default new Command({
   description: "Pong!",
   type: ApplicationCommandType.ChatInput,
   async run({ interaction, client, options }) {
+    if (interaction.user.id || interaction.guild!.id) {
+      const embed = new EmbedBuilder()
+        .setTitle("Erro!")
+        .setDescription(
+          ":warning: Erro ao buscar os dados do usuário, tente novamente mais tarde!",
+        )
+        .setColor("Red");
+
+      return interaction.reply({
+        ephemeral: true,
+        embeds: [embed],
+      });
+    }
+
     const modal = new ModalBuilder({
       customId: "register-form-modal",
       title: "Formulario de cadastro",
