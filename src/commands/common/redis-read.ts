@@ -1,4 +1,4 @@
-import { clientRedis } from './../../databases/redis';
+import { clientRedis } from "./../../databases/redis";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
