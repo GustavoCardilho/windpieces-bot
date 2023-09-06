@@ -14,7 +14,7 @@ export default new Command({
   description: "Pong!",
   type: ApplicationCommandType.ChatInput,
   async run({ interaction, client, options }) {
-    if (interaction.user.id || interaction.guild!.id) {
+    if (!interaction.user.id || !interaction.guild!.id) {
       const embed = new EmbedBuilder()
         .setTitle("Erro!")
         .setDescription(
