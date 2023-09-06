@@ -85,6 +85,7 @@ export default new Command({
       userID: interaction.user.id,
       guildID: interaction.guild!.id,
       description,
+      class: "Nenhuma",
     });
 
     modalInteraction.reply({
