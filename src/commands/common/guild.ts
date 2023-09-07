@@ -1,4 +1,4 @@
-import { ApplicationCommandType } from "discord.js";
+import { ApplicationCommandType, ChannelType, Collection } from "discord.js";
 import { Command } from "../../structs/types/command";
 import { GuildModel } from "../../models/GuildModel";
 
@@ -7,6 +7,14 @@ export default new Command({
   description: "Registrar o servidor ao WindPieces",
   type: ApplicationCommandType.ChatInput,
   async run({ interaction, client, options }) {
+    if (!interaction.inCachedGuild()) return;
+
+    if (!interaction.member.permissions.has("Administrator"))
+      return interaction.reply({
+        ephemeral: true,
+        content: `Você não pode registrar o servidor.`,
+      });
+    const { guild } = interaction;
     const guildId = interaction.guildId;
     const guildOwnerId = interaction.guild?.ownerId;
 
@@ -27,13 +35,25 @@ export default new Command({
         });
         return;
       }
-      const teste = await GuildModel.create({
-        guildID: guildId,
-        ownerID: guildOwnerId,
-      });
+
+      const checkCategoryCreated = guild.channels.cache.find(
+        (channel) => channel.name === "WindPieces",
+      );
+
+      if (!checkCategoryCreated) {
+        await guild.channels.create({
+          name: "WindPieces",
+          type: ChannelType.GuildCategory,
+        });
+
+        return interaction.reply({
+          ephemeral: true,
+          content: `Servidor registrado com sucesso.`,
+        });
+      }
       interaction.reply({
         ephemeral: true,
-        content: `Servidor registrado com sucesso.`,
+        content: `Já existe uma categoria com o nome de *WindPieces.*`,
       });
     } catch (err) {
       console.log(err);

@@ -1,12 +1,24 @@
 import {
   ActionRowBuilder,
   ApplicationCommandType,
+  BitField,
+  ButtonBuilder,
+  ButtonStyle,
+  CategoryChannel,
+  ChannelType,
+  Collection,
+  ComponentType,
   EmbedBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
+  GuildChannel,
+  Interaction,
+  OverwriteType,
+  PermissionOverwrites,
+  PermissionsBitField,
+  StringSelectMenuBuilder,
 } from "discord.js";
 import { Command } from "../../structs/types/command";
+import { GuildModel } from "../../models/GuildModel";
+import { clientRedis } from "../../databases/redis";
 import { UserModel } from "../../models/UserModel";
 
 export default new Command({
@@ -14,83 +26,228 @@ export default new Command({
   description: "Pong!",
   type: ApplicationCommandType.ChatInput,
   async run({ interaction, client, options }) {
-    if (!interaction.user.id || !interaction.guild!.id) {
-      const embed = new EmbedBuilder()
-        .setTitle("Erro!")
-        .setDescription(
-          ":warning: Erro ao buscar os dados do usuário, tente novamente mais tarde!",
-        )
-        .setColor("Red");
+    if (!interaction.inCachedGuild()) return;
+    const category = await interaction.guild?.channels.cache.find(
+      (channel) => channel.name === "WindPieces",
+    );
 
-      return interaction.reply({
+    if (!category) {
+      interaction.reply({
         ephemeral: true,
-        embeds: [embed],
+        content: `Categoria não encontrada.`,
       });
+      return;
     }
 
-    const modal = new ModalBuilder({
-      customId: "register-form-modal",
-      title: "Formulario de cadastro",
-    });
-
-    const input1 = new ActionRowBuilder<TextInputBuilder>({
-      components: [
-        new TextInputBuilder({
-          customId: "register-form-modal-input1",
-          label: "Description",
-          placeholder: "Enter your description here",
-          style: TextInputStyle.Short,
-        }),
-      ],
-    });
-
-    modal.setComponents([input1]);
-
-    const verifyUser = await UserModel.findOne({
+    const verifyRegisterMongo = await UserModel.findOne({
       userID: interaction.user.id,
-      guildID: interaction.guild!.id,
+      guildID: interaction.guildId,
     });
+    if (verifyRegisterMongo) {
+      await clientRedis.del(`register-user-${interaction.user.id}-stage`);
 
-    if (verifyUser) {
-      const embed = new EmbedBuilder()
-        .setTitle("Registro encontrado!!")
-        .setDescription(
-          ":warning: Você já está registrado, caso queira alterar sua descrição, use o comando `/edit`",
-        )
-        .setColor("Red");
-
-      return interaction.reply({
-        content: "Você já está registrado!",
+      interaction.reply({
         ephemeral: true,
-        embeds: [embed],
+        content: `Você já está registrado.`,
       });
+      return;
     }
 
-    interaction.showModal(modal);
+    const { guild } = interaction;
 
-    const modalInteraction = await interaction
-      .awaitModalSubmit({
-        time: 20_000,
-        filter: (i) => i.user.id == interaction.user.id,
-      })
-      .catch((err) => undefined);
+    if (!guild.channels.cache.get(`register-${interaction.user.id}`)) {
+      try {
+        const channel = await guild.channels.create({
+          name: `register-${interaction.user.id}`,
+          type: ChannelType.GuildText,
+          parent: category as CategoryChannel,
+        });
+        await channel.permissionOverwrites.create(guild.roles.everyone, {
+          SendMessages: false,
+          ViewChannel: false,
+        });
+        if (
+          !guild.roles.cache.find(
+            (role) =>
+              role.name === `windpieces-registered-${interaction.user.id}`,
+          )
+        ) {
+          const roleRegistered = await guild.roles.create({
+            name: `windpieces-registered-${interaction.user.id}`,
+            color: "Red",
+          });
+          await channel.permissionOverwrites.create(roleRegistered, {
+            ViewChannel: true,
+          });
 
-    if (!modalInteraction) return;
+          if (!roleRegistered)
+            return interaction.reply({
+              ephemeral: true,
+              content: `Não foi possível criar o cargo. ERR: 500`,
+            });
+        }
 
-    const { fields } = modalInteraction;
+        const findRole = guild.roles.cache.find(
+          (role) =>
+            role.name === `windpieces-registered-${interaction.user.id}`,
+        );
 
-    const description = fields.getTextInputValue("register-form-modal-input1");
+        await interaction.member.roles.add(findRole!);
 
-    await UserModel.create({
-      userID: interaction.user.id,
-      guildID: interaction.guild!.id,
-      description,
-      class: "Nenhuma",
-    });
+        const EmbedCreatedChannel = await EmbedCreatedChannelForRegister(
+          interaction.user.id,
+          channel.id,
+        );
 
-    modalInteraction.reply({
-      content: `Modal submitted! ${modalInteraction.user.username}`,
-      ephemeral: true,
-    });
+        const { buttons, embeds } = await RegisterSetup();
+        const msg = await channel.send({
+          components: buttons,
+          embeds: embeds,
+        });
+        const collectorButtonRegister = msg.createMessageComponentCollector({
+          componentType: ComponentType.Button,
+        });
+
+        await interaction.reply({
+          ephemeral: true,
+          embeds: EmbedCreatedChannel.embeds,
+        });
+
+        collectorButtonRegister.on("collect", async (buttonInteraction) => {
+          const { user } = buttonInteraction;
+          const { selects, embeds } = await ClassSetup();
+          const verifyRegister = await clientRedis.get(
+            `register-user-${user.id}-stage`,
+          );
+
+          if (!verifyRegister) {
+            await clientRedis.set(`register-user-${user.id}-stage`, 1);
+            clientRedis.expire(`register-user-${user.id}-stage`, 30);
+            await buttonInteraction.reply({
+              components: selects,
+              embeds: embeds,
+              ephemeral: true,
+            });
+          }
+        });
+      } catch (err) {}
+    }
   },
+  selects: new Collection([
+    [
+      "select-class",
+      async (interaction) => {
+        if (!interaction.inCachedGuild()) return;
+        await UserModel.create({
+          userID: interaction.user.id,
+          guildID: interaction.guildId,
+          class: interaction.values[0],
+        });
+        await clientRedis.del(`register-user-${interaction.user.id}-stage`);
+
+        const embed = new EmbedBuilder()
+          .setTitle("Registrado com sucesso")
+          .setDescription(
+            `Seja bem vind@, ${interaction.user.username}. Você foi registrado com sucesso.\n
+            Caso precise de ajuda, digite \`/help\` para ver os comandos disponíveis.\n
+            Até mais!`,
+          )
+          .setColor("Green")
+          .setThumbnail(interaction.user.displayAvatarURL());
+        await interaction.update({
+          components: [],
+          embeds: [embed],
+        });
+        setTimeout(async () => {
+          finishRegister(interaction);
+        }, 5000);
+      },
+    ],
+  ]),
 });
+
+const RegisterSetup = async () => {
+  const embed = new EmbedBuilder()
+    .setTitle("Registre-se no WindPieces")
+    .setDescription(
+      `Olá! Para se registrar no mundo de windpieces, clique no botão abaixo.`,
+    )
+    .setColor("Aqua");
+
+  const button = new ButtonBuilder({
+    customId: "start-register",
+    label: "Registre-se",
+    style: ButtonStyle.Success,
+  });
+
+  const rowButton = new ActionRowBuilder<ButtonBuilder>({
+    components: [button],
+  });
+
+  return { buttons: [rowButton], embeds: [embed] };
+};
+
+const ClassSetup = async () => {
+  const embed = new EmbedBuilder()
+    .setTitle("Seleção de classe")
+    .setDescription(
+      `Selecione uma classe para começar sua jornada no mundo de WindPieces.`,
+    )
+    .setColor("Random");
+
+  const rowSelect = new ActionRowBuilder<StringSelectMenuBuilder>({
+    components: [
+      new StringSelectMenuBuilder({
+        customId: "select-class",
+        placeholder: "Selecione uma classe",
+        options: [
+          {
+            label: "Guerreiro",
+            value: "warrior",
+            emoji: "⚔️",
+          },
+          {
+            label: "Mago",
+            value: "mage",
+            emoji: "🧙‍♂️",
+          },
+          {
+            label: "Arqueiro",
+            value: "archer",
+            emoji: "🏹",
+          },
+        ],
+      }),
+    ],
+  });
+
+  return { selects: [rowSelect], embeds: [embed] };
+};
+
+const finishRegister = async (interaction: any) => {
+  const findRole = interaction.guild.roles.cache.find(
+    (role: any) => role.name === `windpieces-registered-${interaction.user.id}`,
+  );
+
+  await interaction.member!.roles.remove(findRole!);
+
+  const channel = interaction.guild?.channels.cache.find(
+    (channel: any) => channel.name === `register-${interaction.user.id}`,
+  );
+  interaction.guild.roles.delete(findRole!);
+  await channel?.delete();
+};
+
+const EmbedCreatedChannelForRegister = async (
+  userId: String,
+  channelCreated: string,
+) => {
+  const embed = new EmbedBuilder()
+    .setTitle("Registro iniciado")
+    .setDescription(
+      `Para se registrar, acesse o canal <#${channelCreated}>. Caso não consiga acessar, contate um administrador do bot`,
+    )
+    .setColor("Aqua");
+
+  return { embeds: [embed] };
+};
