@@ -25,11 +25,18 @@ export default new Command({
       .setColor("Aqua")
       .setDescription(
         `
-        **User:** ${interaction.user.tag}
+      **User:** ${interaction.user.tag}
       **Level:** ${verifyUser?.level}
       **XP:** ${verifyUser?.xp}
       **Coins:** ${verifyUser?.coins}
       **Class:** ${verifyUser?.class}
+      **Element:** ${verifyUser?.element}
+      **Local:** ${verifyUser?.local}
+      **Weapon:** ${verifyUser?.weapon}
+      **Magic Power:** ${verifyUser?.magicPower}
+      **Physical Power:** ${verifyUser?.physicalPower}
+      **Defense:** ${verifyUser?.defense}
+      **Speed:** ${verifyUser?.speed}
       `,
       )
       .setThumbnail(interaction.user.displayAvatarURL({ size: 512 }));

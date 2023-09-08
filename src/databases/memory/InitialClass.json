@@ -1,0 +1,32 @@
+[
+  {
+    "label": "Guerreiro",
+    "value": "warrior",
+    "emoji": "⚔️",
+    "physicalPower": 5,
+    "magicalPower": 0,
+    "defense": 5,
+    "weapon": "sword",
+    "speed": 3
+  },
+  {
+    "label": "Mago",
+    "value": "mage",
+    "emoji": "🧙‍♂️",
+    "magicalPower": 5,
+    "physicalPower": 0,
+    "defense": 3,
+    "weapon": "staff",
+    "speed": 3
+  },
+  {
+    "label": "Arqueiro",
+    "value": "archer",
+    "emoji": "🏹",
+    "physicalPower": 3,
+    "magicalPower": 0,
+    "defense": 3,
+    "weapon": "bow",
+    "speed": 5
+  }
+]
