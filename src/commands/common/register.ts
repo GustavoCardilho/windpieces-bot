@@ -76,7 +76,6 @@ export default new Command({
 
     console.log(getChannelIdentifier);
     let channel: TextChannel | undefined = undefined;
-
     if (!getChannelIdentifier) {
       try {
         channel = await guild.channels.create({
