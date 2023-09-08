@@ -1,30 +1,19 @@
 import {
   ActionRowBuilder,
   ApplicationCommandType,
-  BitField,
   ButtonBuilder,
   ButtonStyle,
   CategoryChannel,
   ChannelType,
   Collection,
-  ComponentType,
   EmbedBuilder,
-  GuildChannel,
-  Interaction,
-  ModalBuilder,
-  OverwriteType,
-  PermissionOverwrites,
-  PermissionsBitField,
   StringSelectMenuBuilder,
-  TextInputBuilder,
-  TextInputStyle,
+  TextChannel,
 } from "discord.js";
 import { Command } from "../../structs/types/command";
-import { GuildModel } from "../../models/GuildModel";
 import { clientRedis } from "../../databases/redis";
 import { UserModel } from "../../models/UserModel";
 import InitialClassMemoryDatabase from "../../databases/memory/InitialClass.json";
-import { v4 as uuidv4 } from "uuid";
 
 interface InitialClassInterface {
   label: string;
@@ -38,12 +27,6 @@ interface InitialClassInterface {
 }
 
 interface ClassInterface {
-  label: string;
-  value: string;
-  emoji: string;
-}
-
-interface ElementInterface {
   label: string;
   value: string;
   emoji: string;
@@ -87,89 +70,84 @@ export default new Command({
     }
 
     const { guild } = interaction;
+    const getChannelIdentifier = await guild.channels.cache.get(
+      `register-${interaction.user.id}`,
+    );
 
-    if (!guild.channels.cache.get(`register-${interaction.user.id}`)) {
+    console.log(getChannelIdentifier);
+    let channel: TextChannel | undefined = undefined;
+
+    if (!getChannelIdentifier) {
       try {
-        const channel = await guild.channels.create({
+        channel = await guild.channels.create({
           name: `register-${interaction.user.id}`,
           type: ChannelType.GuildText,
           parent: category as CategoryChannel,
         });
+
         await channel.permissionOverwrites.create(guild.roles.everyone, {
           SendMessages: false,
           ViewChannel: false,
         });
-        if (
-          !guild.roles.cache.find(
-            (role) =>
-              role.name === `windpieces-registered-${interaction.user.id}`,
-          )
-        ) {
-          const roleRegistered = await guild.roles.create({
-            name: `windpieces-registered-${interaction.user.id}`,
-            color: "Red",
-          });
-          await channel.permissionOverwrites.create(roleRegistered, {
-            ViewChannel: true,
-          });
-
-          if (!roleRegistered)
-            return interaction.reply({
-              ephemeral: true,
-              content: `Não foi possível criar o cargo. ERR: 500`,
-            });
-        }
-
-        const findRole = guild.roles.cache.find(
-          (role) =>
-            role.name === `windpieces-registered-${interaction.user.id}`,
-        );
-
-        await interaction.member.roles.add(findRole!);
-
-        const EmbedCreatedChannel = await EmbedCreatedChannelForRegister(
-          interaction.user.id,
-          channel.id,
-        );
-
-        const { buttons, embeds } = await RegisterSetup();
-        const msg = await channel.send({
-          components: buttons,
-          embeds: embeds,
-        });
-
-        await interaction.reply({
-          ephemeral: true,
-          embeds: EmbedCreatedChannel.embeds,
-        });
       } catch (err) {}
+    } else {
+      channel = getChannelIdentifier as TextChannel;
     }
+
+    if (!channel) return;
+
+    let findRoleIdentifier = guild.roles.cache.find(
+      (role) => role.name === `windpieces-registered-${interaction.user.id}`,
+    );
+
+    if (!findRoleIdentifier) {
+      findRoleIdentifier = await guild.roles.create({
+        name: `windpieces-registered-${interaction.user.id}`,
+        color: "Red",
+      });
+
+      if (!findRoleIdentifier)
+        return interaction.reply({
+          ephemeral: true,
+          content: `Não foi possível criar o cargo. ERR: 500`,
+        });
+    }
+
+    await channel.permissionOverwrites.create(findRoleIdentifier, {
+      ViewChannel: true,
+    });
+
+    const verifyHasRole = interaction.member!.roles.cache.find(
+      (role) => role.name === `windpieces-registered-${interaction.user.id}`,
+    );
+
+    if (!verifyHasRole) {
+      await interaction.member.roles.add(findRoleIdentifier!);
+    }
+
+    const EmbedCreatedChannel = await EmbedCreatedChannelForRegister(
+      interaction.user.id,
+      channel.id,
+    );
+
+    const { buttons, embeds } = await RegisterSetup();
+
+    await channel.send({
+      components: buttons,
+      embeds: embeds,
+    });
+
+    await interaction.reply({
+      ephemeral: true,
+      embeds: EmbedCreatedChannel.embeds,
+    });
   },
   selects: new Collection([
     [
       "select-class",
       async (interaction) => {
         if (!interaction.inCachedGuild()) return;
-        /*         await UserModel.create({
-          userID: interaction.user.id,
-          guildID: interaction.guildId,
-          class: interaction.values[0],
-        }); */
         await clientRedis.del(`register-user-${interaction.user.id}-stage`);
-
-        /*         const embed = new EmbedBuilder()
-          .setTitle("Registrado com sucesso")
-          .setDescription(
-            `Seja bem vind@, ${interaction.user.username}. Você foi registrado com sucesso.\n
-            Caso precise de ajuda, digite \`/help\` para ver os comandos disponíveis.\n
-            Até mais!`,
-          )
-          .setColor("Green")
-          .setThumbnail(interaction.user.displayAvatarURL());
-        await interaction.update({
-          components: [],
-          embeds: [embed],
-        }); */
         const option = InitialClassMemoryDatabase.find(
           (e) => e.value === interaction.values[0],
         );
@@ -202,34 +180,6 @@ export default new Command({
       "select-element",
       async (interaction) => {
         if (!interaction.inCachedGuild()) return;
-        /* const option = CollectionClass.get(interaction.user.id);
-        if (!option) return;
-        const InitialClass = InitialClassMemoryDatabase.find(
-          (e) => e.value === option.value,
-        );
-        await UserModel.create({
-          userID: interaction.user.id,
-          guildID: interaction.guildId,
-          class: option.value,
-          element: interaction.values[0],
-          weapon: InitialClass?.weapon,
-          physicalPower: InitialClass?.physicalPower,
-          magicalPower: InitialClass?.magicalPower,
-          defense: InitialClass?.defense,
-          speed: InitialClass?.speed,
-          local: "initial",
-        });
-        await clientRedis.del(`register-user-${interaction.user.id}-stage`);
-
-        const embed = new EmbedBuilder()
-          .setTitle("Registrado com sucesso")
-          .setDescription(
-            `Seja bem vind@, ${interaction.user.username}. Você foi registrado com sucesso.\n
-            Caso precise de ajuda, digite \`/help\` para ver os comandos disponíveis.\n
-            Até mais!`,
-          )
-          .setColor("Green")
-          .setThumbnail(interaction.user.displayAvatarURL()); */
         CollectionElement.set(interaction.user.id, interaction.values[0]);
         const embed = new EmbedBuilder()
           .setTitle("Elemento selecionado")
@@ -241,9 +191,7 @@ export default new Command({
           embeds: [embed],
           components: [],
         });
-        const codeAll = uuidv4();
-        const code = codeAll.split("-")[0];
-        CollectionMember.set(interaction.user.id, code);
+
         let code1 = randomNumber(1000, 9999);
         let code2 = randomNumber(1000, 9999, [code1!]);
         let code3 = randomNumber(1000, 9999, [code1!, code2!]);
@@ -368,54 +316,6 @@ export default new Command({
           setTimeout(() => {
             finishRegister(interaction);
           }, 5000);
-        }
-      },
-    ],
-  ]),
-  modals: new Collection([
-    [
-      "modal-captcha",
-      async (interaction) => {
-        const code = CollectionMember.get(interaction.user.id);
-        const inputCode = interaction.fields.getTextInputValue(
-          "modal-captcha-input",
-        );
-
-        if (!code) return;
-        if (inputCode === code) {
-          const option = CollectionClass.get(interaction.user.id);
-          if (!option) return;
-          const InitialClass = InitialClassMemoryDatabase.find(
-            (e) => e.value === option.value,
-          );
-          const element = CollectionElement.get(interaction.user.id);
-          await UserModel.create({
-            userID: interaction.user.id,
-            guildID: interaction.guildId,
-            class: option.value,
-            element,
-            weapon: InitialClass?.weapon,
-            physicalPower: InitialClass?.physicalPower,
-            magicalPower: InitialClass?.magicalPower,
-            defense: InitialClass?.defense,
-            speed: InitialClass?.speed,
-            local: "initial",
-          });
-          await clientRedis.del(`register-user-${interaction.user.id}-stage`);
-
-          const embed = new EmbedBuilder()
-            .setTitle("Registrado com sucesso")
-            .setDescription(
-              `Seja bem vind@, ${interaction.user.username}. Você foi registrado com sucesso.\n
-            Caso precise de ajuda, digite \`/help\` para ver os comandos disponíveis.\n
-            Até mais!`,
-            )
-            .setColor("Green")
-            .setThumbnail(interaction.user.displayAvatarURL());
-          await interaction.reply({
-            components: [],
-            embeds: [embed],
-          });
         }
       },
     ],

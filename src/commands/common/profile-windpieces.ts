@@ -13,7 +13,7 @@ export default new Command({
     });
 
     if (!verifyUser) {
-      interaction.reply({
+      return interaction.reply({
         ephemeral: true,
         content: `
         :warning: Você não está registrado, use o comando \`/register\` para se registrar!`,
@@ -41,7 +41,7 @@ export default new Command({
       )
       .setThumbnail(interaction.user.displayAvatarURL({ size: 512 }));
 
-    interaction.reply({
+    return interaction.reply({
       ephemeral: true,
       embeds: [embed],
     });
